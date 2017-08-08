@@ -1,0 +1,7 @@
+# ignore all files
+/*
+
+# accept files
+!/*.gitignore
+!/*.sh
+!/hlp

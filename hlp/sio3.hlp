@@ -1,0 +1,70 @@
+FN_LED>>>
+
+Dieser LED-Test wird von der Firmware immer waehrend der
+Initialisierung der SIO3 (Einschaltvorgang) durchgefuehrt.
+Der Pruefungsverantwortliche muss die LEDs beim Einschalten
+beobachten und das Ergebnis in dieser Maske eingeben.
+
+Sollten die Ergebnisse noch nicht vorliegen, brechen Sie bitte
+diesen Test ab und starten Sie die SIO3 erneut, indem Sie die
+Versorgungsspannung ab- und wieder zuschalten.
+
+<<<FN_LED
+
+
+
+FN_SRS>>>
+-----------------------------------------------------
+Hex Dial Settings (for development/commisioning only)
+-----------------------------------------------------
+
+Hex Dial    CID Group            Test Vector
+--------    ---------            -----------
+0-1         0000  = undefined    x"0000" = undefined
+2           0016h = SIO1         x"0000" = undefined
+3           0015h = SIO2         x"0000" = undefined
+4           0045h = SIO3         x"0000" = undefined
+5-B         0000  = undefined    x"0000" = undefined
+C           0000  = undefined    Mil Decoder Diagnosis
+D           0000  = undefined    Timing Pattern(Local Access)
+E           0000  = undefined    x"cafebabe"
+F           0000  = undefined    Internal Test signals(obj. of change)
+<<<FN_SRS
+
+
+
+FN_ECHO>>>
+Kein Eintrag
+<<<FN_ECHO
+
+
+
+FN_OW>>>
+Kein Eintrag
+<<<FN_OW
+
+
+
+FN_DB_INT>>>
+Kein Eintrag
+<<<FN_DB_INT
+
+
+
+FN_DB_IFK>>>
+
+MIL Control and Status Register: 0x9000
+---------------------------------------
+Bit 15: FPGA interner Manchester En/Decoder ausgewaehlt
+Bit 12: Entprellen des Device Bus Interrupt aktiviert (nicht abschaltbar)
+Bit 0-8: Status Bits
+
+Function Codes
+--------------
+Code 0x13: Echo-Sollwert setzen (0xAAAA oder 0x5555)
+Code 0x89: Echo-Sollwert ruecklesen
+
+Die IFK Adresse wird über die VG-Leiste bzw. Piggy-Stecker eingestellt.
+Das Testskript sendet die Daten an die Adresse 0x79.
+Weitere Informationen unter Technical Note "Beschreibung_SIO3_FG900151"
+<<<FN_DB_IFK
