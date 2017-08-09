@@ -58,7 +58,7 @@ readonly PAT1=0xAAAA; #Testcode fuer Echoregister
 readonly PAT2=0x5555; #Testcode fuer Echoregister
 
 
-# Dateien anlegen, 1 Zeile leer - Abstand für Anzeige in Dialog besser
+# Dateien anlegen, bzw. vorbereiten, 1 Zeile leer - Abstand für Anzeige in Dialog besser
 echo " " > $sculog
 echo " " > $errlog
 
@@ -66,7 +66,6 @@ echo " " > $tmpfile
 echo " " > $tmp2file
 echo " " > $countfile
 echo " " > $summary
-
 
 
 # Definiere die Dialog exit status codes
@@ -118,15 +117,12 @@ FIN() {
   else local grund="Pruefung vorzeitig abgebrochen";fi
   { FLINE 2 "~" 80 0;FLINE 1 "~" 80 1;echo -e "$grund !!!"
     FLINE 0 "~" 80 0;FLINE 1 "~" 80 2;
-
-    FLINE 0 "*" 80 1
-    echo -e "ZUSAMMENFASSUNG"
-    FLINE 0 "*" 80 2
-    printf "%-60s %s\n" "Testabschnitt" "Fehleranzahl"
-    FLINE 0 "-" 80 1
   } >> $sculog
 
-  cat $summary >> $sculog
+  FLINE 0 "-" 80 3 >> $summary
+  cat $sculog > $tmpfile
+  cat $summary > $sculog
+  cat $tmpfile >> $sculog
 
   rm -f $summary
   rm -f $tmpfile
@@ -449,6 +445,7 @@ FN_SRS() {
   TABSRS() {
     local i=$1
     local rw=${SRSTYPE[$i]}
+    typeset -i local count=($(cat $countfile))
     if [ $rw == "w" ];then
       typeset -i local testreg=$testslaveadr+${SRSADR32[$i]}
       eb-write $scutcp $testreg/2 ${SRSDEF[$i]} 2>> $errlog
@@ -459,7 +456,7 @@ FN_SRS() {
       SRSRESULT[$i]=$(printf "0x%s\n" "$result")
       if  [[ "${SRSRESULT[$i]}" == "${SRSDEF[$i]}" ]];then SRSMARK[$i]+="<OK"
       elif [[ "${SRSDEF[$i]}" == "0xxxxx" ]];then SRSMARK[$i]+="---"
-      else SRSMARK[$i]+="<F ";echo $(($(cat $countfile)+1)) <> $countfile
+      else SRSMARK[$i]+="<F ";count+=1; echo $count > $countfile
       fi
     fi
 
@@ -588,7 +585,7 @@ FN_OW () {
   TABOW () {
     local i=$1
     local rw=${OWTYPE[$i]}
-
+    typeset -i local count=($(cat $countfile))
     if [ $rw == "r" ];then
       typeset -i local testreg=$testslaveadr+${OWADR32[$i]}
       typeset -u local result=$(eb-read $scutcp $testreg/2 2>> $errlog)
@@ -597,7 +594,7 @@ FN_OW () {
       else printf "%s" "$result" >> $tmp2file;fi
       if [ $i == 4 ];then
         if [ "$(grep -E -o ..$ < <(echo $result))" == 43 ];then OWMARK[$i]="<OK";#kuerze result auf xx
-        else OWMARK[$i]="<F";echo $(($(cat $countfile)+1)) <> $countfile;fi
+        else OWMARK[$i]="<F";count+=1; echo $count > $countfile;fi
       else OWMARK[$i]="---";fi
     fi
 
@@ -783,7 +780,7 @@ FN_DB_IFK () {
   TABMIL() {
     local i=$1
     local rw=${MILTYPE[$i]}
-
+    typeset -i local count=($(cat $countfile))
     if [ $rw == "w" ];then
       typeset -i local testreg=$testslaveadr+${MILADR32[$i]}
       eb-write $scutcp $testreg/2 ${MILWRITE[$i]} 2>> $errlog
@@ -792,7 +789,7 @@ FN_DB_IFK () {
       typeset -u local result=$(eb-read $scutcp $testreg/2 2>> $errlog)
       MILREAD[$i]=$(printf "0x%s\n" "$result")
       if  [[ "${MILREAD[$i]}" == "${MILWRITE[$i]}" ]];then MILMARK[$i]+="<OK"
-      else MILMARK[$i]+="<F ";echo $(($(cat $countfile)+1)) <> $countfile
+      else MILMARK[$i]+="<F ";count+=1; echo $count > $countfile
       fi
       MILWRITE[$i]=""; #Loesche aus Anzeige
     elif [ $rw == "rw" ];then
@@ -843,7 +840,9 @@ FN_DB_IFK () {
 ################################################################################
 # main
 ################################################################################
-{ CENTER "SIO3 Funktionstest" 80
+{ CENTER "----------------------" 80
+  CENTER "| SIO3 Funktionstest |" 80
+  CENTER "----------------------" 80
   FLINE 0 ">" 80 1
   echo -e "SCU-Name:\t $scuname"
   echo -e "SIO3-CID:\t $cid_id "
@@ -851,6 +850,14 @@ FN_DB_IFK () {
   echo -e "Geprueft am:\t $date"
   FLINE 0 "<" 80 1
 } >> $sculog
+
+{ FLINE 0 "*" 80 1
+  echo -e "ZUSAMMENFASSUNG"
+  FLINE 0 "*" 80 2
+  printf "%-60s %s\n" "Testabschnitt" "Fehleranzahl"
+  FLINE 0 "-" 80 1
+} >> $summary
+
 
 #Scriptablauf
 while [ 1 ];do
@@ -860,7 +867,7 @@ done
 
 FN_LED
 FN_SLADR
-#slotnr=9
+#slotnr=2
 #typeset -i calctestslave=$((scuslave_baseadr+0x20000*slotnr))
 #testslaveadr=0x$( printf "%X\n" $calctestslave ); #TESTSLAVE!!!
 FN_SLBUS
