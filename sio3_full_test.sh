@@ -8,16 +8,16 @@ clear
 
 # Parameter check
 #----------------
-if [ $# -ne 2 ]
+if [ $# -ne 3 ]
 then
-  if [ $# -lt 2 ]
+  if [ $# -lt 3 ]
   then
     echo "Fehler: erwarte Argumente!"
   else
     echo "Fehler: zu viele Argumente!"
   fi
-  echo -e "\nBsp.: \e[7m $0 0022 Mueller \e[0m"
-  echo -e "(0022 für scuxl0022), (Nachname oder Kuerzel)\n\n"
+  echo -e "\nBsp.: \e[7m $0 0022 5500230001 Mueller \e[0m"
+  echo -e "(0022 für scuxl0022), CID, (Nachname oder Kuerzel)\n\n"
   exit 1
 fi
 
@@ -30,12 +30,13 @@ scu_vendor_id='0x651' # GSI => aus mini_sdb.h
 scu_bus_master_dev_id='0x9602eb6f' # aus mini_sdb.h
 
 # globale Variablen
+cid_id="$2"
 scuname="scuxl$1"
-lastname="$2"
+lastname="$3"
 date=$(date +%Y-%m-%d)
 scutcp="tcp/$scuname.acc"
 
-sculog="./$scuname.log";    # Log-Datei fuer den Test
+sculog="./scu_sio3_$cid_id.log";    # Log-Datei fuer den Test
 hlpfile="./hlp/sio3.hlp";   # Textdatei fuer Hilfeseiten
 
 #Temp-Files
@@ -845,6 +846,7 @@ FN_DB_IFK () {
 { CENTER "SIO3 Funktionstest" 80
   FLINE 0 ">" 80 1
   echo -e "SCU-Name:\t $scuname"
+  echo -e "SIO3-CID:\t $cid_id "
   echo -e "Geprueft von:\t $lastname"
   echo -e "Geprueft am:\t $date"
   FLINE 0 "<" 80 1
