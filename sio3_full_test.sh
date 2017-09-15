@@ -36,7 +36,9 @@ lastname="$3"
 date=$(date +%Y-%m-%d)
 scutcp="tcp/$scuname.acc"
 
+#Files
 sculog="./scu_sio3_$cid_id.log";    # Log-Datei fuer den Test
+onwireidfile="./1W_SIO3_$cid_id.txt"; # Log-Datei für die ausgelesene One-Wire ID
 hlpfile="./hlp/sio3.hlp";   # Textdatei fuer Hilfeseiten
 
 #Temp-Files
@@ -563,7 +565,7 @@ FN_OW () {
   local OWADR=("Sl.Adr" 0x0040 0x0041 0x0042 0x0043)
   local OWADR32=("32 Bit" 0x0080 0x0082 0x0084 0x0086)
   local OWNAME=("Description" "CRC Code+Serial#" "Serial#" "Serial#" "Family Code")
-  local OWTYPE=("R/W" r r r r)
+  local OWTYPE=("Type" EEPROM EEPROM EEPROM EEPROM)
   local OWBFIELD=("Bitfield" 63..48 47..32 16..31 15..0)
   local OWRESULT=("Read   ")
   local OWMARK=("   ")
@@ -584,16 +586,16 @@ FN_OW () {
   # Funktion zum Lesen/Schreiben und Formatieren der Tabellenzeilen
   TABOW () {
     local i=$1
-    local rw=${OWTYPE[$i]}
+    local type=${OWTYPE[$i]}
     typeset -i local count=($(cat $countfile))
-    if [ $rw == "r" ];then
+    if [ $type != "Type" ];then
       typeset -i local testreg=$testslaveadr+${OWADR32[$i]}
       typeset -u local result=$(eb-read $scutcp $testreg/2 2>> $errlog)
       OWRESULT[$i]=$(printf "0x%s\n" "$result")
-      if [ $i == 1 ];then printf "0x%s" "$result" > $tmp2file
-      else printf "%s" "$result" >> $tmp2file;fi
+      printf "%s" "$result" >> $tmp2file;
       if [ $i == 4 ];then
-        if [ "$(grep -E -o ..$ < <(echo $result))" == 43 ];then OWMARK[$i]="<OK";#kuerze result auf xx
+        local famcode="$(grep -E -o ..$ < <(echo $result))"
+        if [ $i == 4 -a $famcode == 43 ];then OWMARK[$i]="<OK";#kuerze result auf xx
         else OWMARK[$i]="<F";count+=1; echo $count > $countfile;fi
       else OWMARK[$i]="---";fi
     fi
@@ -612,11 +614,13 @@ FN_OW () {
   for ((i=0;i<zeilen;i++));do
     unset textline
     local textline=$(TABOW $i)
-    if [ $i == 0 ] || [ $i == 1 ];then FLINE 0 "-" ${#textline} 1;fi
+    if [ $i == 0 -o $i == 1 ];then FLINE 0 "-" ${#textline} 1;fi
+    if [ $i == 1 ];then echo "| EEPROM (DS28EC20)                                                       |";fi
     echo -e "$textline"
     if [ $i == $((zeilen-1)) ];then
       FLINE 0 "-" ${#textline} 1
-      printf "\n OneWire ID: "; cat $tmp2file
+      # printf "\n%s 0x%s" "OneWire ID: " "$(cat $tmp2file)"
+      echo "SIO3;CID;$cid_id;One-Wire_U15;$(cat $tmp2file)" > $onwireidfile
     fi
   done | tee $tmpfile | tee -a $sculog | $DIAL "$BT" \
   --title "$wtitle" \
@@ -844,10 +848,10 @@ FN_DB_IFK () {
   CENTER "| SIO3 Funktionstest |" 80
   CENTER "----------------------" 80
   FLINE 0 ">" 80 1
-  echo -e "SCU-Name:\t $scuname"
-  echo -e "SIO3-CID:\t $cid_id "
-  echo -e "Geprueft von:\t $lastname"
-  echo -e "Geprueft am:\t $date"
+  echo -e "SCU-Name:\t\t $scuname"
+  echo -e "SIO3-CID:\t\t $cid_id "
+  echo -e "Geprueft von:\t\t $lastname"
+  echo -e "Geprueft am:\t\t $date"
   FLINE 0 "<" 80 1
 } >> $sculog
 
