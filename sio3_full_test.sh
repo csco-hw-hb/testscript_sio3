@@ -2,7 +2,8 @@
 # Functional Test SIO3
 #Script for Testing SIO standard registers, test register, OneWire ID and LEMO Registers
 #K. Kaiser Vers.1 2015-08-26
-#H. Becht  Vers.2 2017.05.02
+#H. Becht  Vers.2 2017.05.02: new surface and testing-routines with dialog
+#H. Becht  Vers.2.1 2018.01.16: testing routine for new Mil-Makro (Retrofitting)
 
 clear
 
@@ -480,9 +481,9 @@ FN_SRS() {
     for ((i=0;i<zeilen;i++));do
     unset textline
     local textline=$(TABSRS $i)
-    if [ $i == 0 ] || [ $i == 1 ];then FLINE 0 "-" ${#textline} 1;fi
+    if [ $i == 0 ] || [ $i == 1 ];then printf "-";FLINE 0 "=" $((${#textline}-2)) 0;echo "-";fi
     echo -e "$textline"
-    if [ $i == $((zeilen-1)) ];then FLINE 0 "-" ${#textline} 1;fi
+    if [ $i == $((zeilen-1)) ];then printf "-";FLINE 0 "=" $((${#textline}-2)) 0;echo "-";fi
   done } | tee $tmpfile | tee -a $sculog | $DIAL "$BT" \
   --title "$wtitle" \
   --extra-button --extra-label "Abbrechen" --help-button\
@@ -518,10 +519,11 @@ FN_ECHO () {
   typeset -i local winlines=12
   for ((xi=0;xi<5;xi++));do
     unset textline
+    local textline=$(TABSRS 0)
     if [ $xi == 0 ];then
-      local textline=$(TABSRS 0)
-      local len=${#textline}
-      FLINE 0 "-" $len 1;echo -e "$textline";FLINE 0 "-" $len 1
+      printf "-";FLINE 0 "=" $((${#textline}-2)) 0;echo "-"
+      echo -e "$textline"
+      printf "-";FLINE 0 "=" $((${#textline}-2)) 0;echo "-"
     fi
 
     if [ $xi == 1 ] || [ $xi == 3 ];then
@@ -535,7 +537,7 @@ FN_ECHO () {
       textline=$(TABSRS $echo_pos)
       echo -e "$textline"
     fi
-    if [ $xi == 4 ];then FLINE 0 "-" $len 1;fi
+    if [ $xi == 4 ];then printf "-";FLINE 0 "=" $((${#textline}-2)) 0;echo "-";fi
   done | tee $tmpfile | tee -a $sculog | $DIAL "$BT" \
   --title "$wtitle" \
   --extra-button --extra-label "Abbrechen" --help-button\
@@ -614,11 +616,10 @@ FN_OW () {
   for ((i=0;i<zeilen;i++));do
     unset textline
     local textline=$(TABOW $i)
-    if [ $i == 0 -o $i == 1 ];then FLINE 0 "-" ${#textline} 1;fi
+    if [ $i == 0 -o $i == 1 ];then printf "-";FLINE 0 "=" $((${#textline}-2)) 0;echo "-";fi
     if [ $i == 1 ];then echo "| EEPROM (DS28EC20)                                                       |";fi
     echo -e "$textline"
-    if [ $i == $((zeilen-1)) ];then
-      FLINE 0 "-" ${#textline} 1
+    if [ $i == $((zeilen-1)) ];then printf "-";FLINE 0 "=" $((${#textline}-2)) 0;echo "-"
       # printf "\n%s 0x%s" "OneWire ID: " "$(cat $tmp2file)"
       echo "SIO3;CID;$cid_id;One-Wire_U15;$(cat $tmp2file)" > $onwireidfile
     fi
@@ -755,15 +756,20 @@ FN_DB_IFK () {
   if [ $retval -eq $D_CANCEL ];then FIN 1;fi
 
   readonly local sc="MIL Ctrl/Status"
+  readonly local rst="Reset"
   readonly local cb="Data Command Bus"
   readonly local db="Data Device Bus"
-  local MILADR=("Sl.Adr"       0x402  0x400  0x401  0x401  0x401  0x400  0x401  0x401 0x401)
-  local MILADR32=("32Bit"      0x804  0x800  0x802  0x802  0x802  0x800  0x802  0x802 0x802)
-  local MILNAME=("Description IFK" "$sc"  "$cb"  "$db"  "$db"  "$db"  "$cb"  "$db"  "$db" "$db")
-  local MILIFKCODE=("Code"     ""     ""     0x13   0x89   ""     ""     0x13   0x89   ""  )
-  local MILIFKADR=("Adr"       ""     ""     0x79   0x79   ""     ""     0x79   0x79   ""  )
-  local MILTYPE=("R/W"         rw     w      w      w      r       w      w      w     r)
-  local MILWRITE=("Write "     0x9000 0xAAAA 0x1379 0x8979 0xAAAA  0x5555 0x1379 0x8979 0x5555)
+  readonly local sa="Status available"
+  readonly local se="Status error"
+
+
+  local MILADR=("Sl.Adr"           0x402  " "  0x412  0x412  " "  0x401  0x401  0xC01  0xD01  " "  0x000  0x000)
+  local MILADR32=("32Bit"          0x804  " "  0x824  0x824  " "  0x800  0x802  0x1802 0x1A02 " "  0x1C00 0x1C20)
+  local MILNAME=("Description IFK" "$sc"  " "  "$rst" "$rst" " "  "$cb"  "$db"  "$db"  "$db"  " "  "$sa"  "$se")
+  local MILIFKCODE=("Code"         ""     " "  ""     ""     " "  ""     0x13   0x89   ""     " "  ""     "")
+  local MILIFKADR=("Adr"           ""     " "  ""     ""     " "  ""     0x79   0x79   ""     " "  ""     "")
+  local MILTYPE=("R/W"             rw     -    w      w      -    w      w      w      r      -    r      r)
+  local MILWRITE=("Write "         0x9000 " "  0x0000 0xFFFF " "  0xA5A5 0x1379 0x8979 0xA5A5 " "  0x0000 0x0000 )
   local MILREAD=("Read  ")
   local MILMARK=("   ")
 
@@ -778,7 +784,7 @@ FN_DB_IFK () {
 
   typeset -i local wincols
   typeset -i local zeilen=${#MILADR[*]};#Benoetigte Zeilen
-  typeset -i local winlines=$zeilen+9
+  typeset -i local winlines=$zeilen+7
 
   # Funktion zum Lesen/Schreiben und Formatieren der Tabellenzeilen
   TABMIL() {
@@ -816,10 +822,9 @@ FN_DB_IFK () {
   for ((i=0;i<zeilen;i++));do
     unset textline
     local textline=$(TABMIL $i)
-    if [ $i == 0 -o $i == 1 ];then FLINE 0 "-" ${#textline} 1;fi
-    if [ $i == 2 -o $i == 6 ];then printf "|";FLINE 0 " -" $((${#textline}/2-1)) 0;echo " |";fi
+    if [ $i == 0 -o $i == 1 ];then printf "-";FLINE 0 "=" $((${#textline}-2)) 0;echo "-";fi
     echo -e "$textline"
-    if [ $i == $((zeilen-1)) ];then FLINE 0 "-" ${#textline} 1;fi
+    if [ $i == $((zeilen-1)) ];then printf "-";FLINE 0 "=" $((${#textline}-2)) 0;echo "-";fi
   done | tee $tmpfile | tee -a $sculog | $DIAL "$BT" \
   --title "$wtitle" \
   --extra-button --extra-label "Abbrechen" --help-button\
@@ -871,7 +876,8 @@ done
 
 FN_LED
 FN_SLADR
-#slotnr=2
+#slotnr=6
+#scuslave_baseadr=$(eb-find $scutcp $scu_vendor_id $scu_bus_master_dev_id 2>> $errlog)
 #typeset -i calctestslave=$((scuslave_baseadr+0x20000*slotnr))
 #testslaveadr=0x$( printf "%X\n" $calctestslave ); #TESTSLAVE!!!
 FN_SLBUS
