@@ -627,7 +627,7 @@ FN_OW () {
 
         if [ $z == 0 ]; then
           typeset -i local ID=$(printf "0x";cat $tmp2file)
-          typeset -i local crcData=$(( $ID & 0x00FFFFFFFFFFFFF0 ))
+          typeset -i local crcData=$(( $ID & 0x00FFFFFFFFFFFFFF ))
           typeset -i local crcReceived=$(( (( $ID & 0xFF00000000000000 ) >> 56 ) & 0x000000000000FF ))
           #typeset -i local crcData=$(printf "0x";echo "$ID" | grep -o -E ".{14}$")
           printf "\n%s 0x%X\n" "OneWire ID: " "$ID"
@@ -638,8 +638,8 @@ FN_OW () {
         fi
 
         dataBit=$(( $crcData & 0x01 << $z ))
-        if [ $dataBit -gt 0 ];then CRC_Temp=$(( $(($CRC & 0x01))^1 ))
-        else CRC_Temp=$(( $(($CRC & 0x01))^0 ));fi
+        if [ $dataBit -gt 0 ];then CRC_Temp=$(( ($CRC & 0x01)^1 ))
+        else CRC_Temp=$(( ($CRC & 0x01)^0 ));fi
 
         if [ $(( $CRC & 0x02 )) -gt 0 ];then CRC=$(( $CRC | 0x01 ))
         else CRC=$(( $CRC & ~0x01 ));fi
