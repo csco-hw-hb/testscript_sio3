@@ -581,7 +581,7 @@ FN_OW () {
   local max_mark=$(MAXLENENTRY SRSMARK[@])
   typeset -i local wincols
   typeset -i local zeilen=${#OWADR[*]};#Benoetigte Zeilen
-  typeset -i local winlines=$zeilen+9
+  typeset -i local winlines=$zeilen+14
 
   >$tmp2file
 
@@ -589,7 +589,7 @@ FN_OW () {
   TABOW () {
     local i=$1
     local type=${OWTYPE[$i]}
-    typeset -i local count=($(cat $countfile))
+    typeset -i local count=$(cat $countfile)
     if [ $type != "Type" ];then
       typeset -i local testreg=$testslaveadr+${OWADR32[$i]}
       typeset -u local result=$(eb-read $scutcp $testreg/2 2>> $errlog)
@@ -598,7 +598,7 @@ FN_OW () {
       if [ $i == 4 ];then
         local famcode="$(grep -E -o ..$ < <(echo $result))"
         if [ $i == 4 -a $famcode == 43 ];then OWMARK[$i]="<OK";#kuerze result auf xx
-        else OWMARK[$i]="<F";count+=1; echo $count > $countfile;fi
+        else OWMARK[$i]="<F ";count+=1; echo $count > $countfile;fi
       else OWMARK[$i]="---";fi
     fi
 
@@ -620,8 +620,62 @@ FN_OW () {
     if [ $i == 1 ];then echo "| EEPROM (DS28EC20)                                                       |";fi
     echo -e "$textline"
     if [ $i == $((zeilen-1)) ];then printf "-";FLINE 0 "=" $((${#textline}-2)) 0;echo "-"
-      # printf "\n%s 0x%s" "OneWire ID: " "$(cat $tmp2file)"
       echo "SIO3;CID;$cid_id;One-Wire_U15;$(cat $tmp2file)" > $onwireidfile
+
+      # CRC berechnen (Variabeln/Berechnungen werden in Integer durchgefuehrt)
+      for ((z=0;z<56;z++));do
+
+        if [ $z == 0 ]; then
+          typeset -i local ID=$(printf "0x";cat $tmp2file)
+          typeset -i local crcData=$(( $ID & 0x00FFFFFFFFFFFFF0 ))
+          typeset -i local crcReceived=$(( (( $ID & 0xFF00000000000000 ) >> 56 ) & 0x000000000000FF ))
+          #typeset -i local crcData=$(printf "0x";echo "$ID" | grep -o -E ".{14}$")
+          printf "\n%s 0x%X\n" "OneWire ID: " "$ID"
+          printf "%s 0x%X\n" "OneWire CRC-Data: " "$crcData"
+          typeset -i local databit=0x00
+          typeset -i local CRC=0x00
+          typeset -i local CRC_Temp=0x00
+        fi
+
+        dataBit=$(( $crcData & 0x01 << $z ))
+        if [ $dataBit -gt 0 ];then CRC_Temp=$(( $(($CRC & 0x01))^1 ))
+        else CRC_Temp=$(( $(($CRC & 0x01))^0 ));fi
+
+        if [ $(( $CRC & 0x02 )) -gt 0 ];then CRC=$(( $CRC | 0x01 ))
+        else CRC=$(( $CRC & ~0x01 ));fi
+
+        if [ $(( $CRC & 0x04 )) -gt 0 ];then CRC=$(( $CRC | 0x02 ))
+        else CRC=$(( $CRC & ~0x02 ));fi
+
+        if [ $(( $CRC & 0x08 )) -gt 0 -a $(( $CRC_Temp^1 )) -gt 0 ] || [ $(( $CRC & 0x08 )) -eq 0 -a $(( $CRC_Temp^0 )) -gt 0 ];then CRC=$(( $CRC | 0x04 ))
+        else CRC=$(( $CRC & ~0x04 ));fi
+
+        if [ $(( $CRC & 0x10 )) -gt 0 -a $(( $CRC_Temp^1 )) -gt 0 ] || [ $(( $CRC & 0x10 )) -eq 0 -a $(( $CRC_Temp^0 )) -gt 0 ];then CRC=$(( $CRC | 0x08 ))
+        else CRC=$(( $CRC & ~0x08 ));fi
+
+        if [ $(( $CRC & 0x20 )) -gt 0 ];then CRC=$(( $CRC | 0x10 ))
+        else CRC=$(( $CRC & ~0x10 ));fi
+
+        if [ $(( $CRC & 0x40 )) -gt 0 ];then CRC=$(( $CRC | 0x20 ))
+        else CRC=$(( $CRC & ~0x20 ));fi
+
+        if [ $(( $CRC & 0x80 )) -gt 0 ];then CRC=$(( $CRC | 0x40 ))
+        else CRC=$(( $CRC & ~0x40 ));fi
+
+        if [ $CRC_Temp -gt 0 ];then CRC=$(( $CRC | 0x80 ))
+        else CRC=$(( $CRC & ~0x80 ));fi
+      done
+      printf "\n%s 0x%X\n" "CRC-Pruefsumme (empfangen): " "$crcReceived"
+      printf "%s 0x%X"   "CRC-Pruefsumme (berechnet): " "$CRC"
+
+      if [ $crcReceived -eq $CRC ];then echo " <OK";
+      else
+        echo " <F"
+        typeset -i local count=$(cat $countfile)
+        count+=1
+        echo $count > $countfile
+      fi
+
     fi
   done | tee $tmpfile | tee -a $sculog | $DIAL "$BT" \
   --title "$wtitle" \
@@ -763,13 +817,13 @@ FN_DB_IFK () {
   readonly local se="Status error"
 
 
-  local MILADR=("Sl.Adr"           0x402  " "  0x412  0x412  " "  0x401  0x401  0xC01  0xD01  " "  0x000  0x000)
-  local MILADR32=("32Bit"          0x804  " "  0x824  0x824  " "  0x800  0x802  0x1802 0x1A02 " "  0x1C00 0x1C20)
-  local MILNAME=("Description IFK" "$sc"  " "  "$rst" "$rst" " "  "$cb"  "$db"  "$db"  "$db"  " "  "$sa"  "$se")
-  local MILIFKCODE=("Code"         ""     " "  ""     ""     " "  ""     0x13   0x89   ""     " "  ""     "")
-  local MILIFKADR=("Adr"           ""     " "  ""     ""     " "  ""     0x79   0x79   ""     " "  ""     "")
-  local MILTYPE=("R/W"             rw     -    w      w      -    w      w      w      r      -    r      r)
-  local MILWRITE=("Write "         0x9000 " "  0x0000 0xFFFF " "  0xA5A5 0x1379 0x8979 0xA5A5 " "  0x0000 0x0000 )
+  local MILADR=("Sl.Adr"           0x402  " "  0x412  0x412  0x000   " "  0x401  0x401  0xC01  " "  0x000   0x000   0xD01  )
+  local MILADR32=("32Bit"          0x804  " "  0x824  0x824  0x1C00  " "  0x800  0x802  0x1802 " "  0x1C00  0x1C20  0x1A02 )
+  local MILNAME=("Description IFK" "$sc"  " "  "$rst" "$rst" "$sa"   " "  "$cb"  "$db"  "$db"  " "  "$sa"   "$se"   "$db"  )
+  local MILIFKCODE=("Code"         ""     " "  ""     ""     ""      " "  ""     0x13   0x89   " "  ""      ""      ""     )
+  local MILIFKADR=("Adr"           ""     " "  ""     ""     ""      " "  ""     0x79   0x79   " "  ""      ""      ""     )
+  local MILTYPE=("R/W"             rw     -    w      w      r       -    w      w      w      -    r       r       r      )
+  local MILWRITE=("Write "         0x9000 " "  0x0000 0xFFFF 0x0000  " "  0xA5A5 0x1379 0x8979 " "  0x0002  0x0000  0xA5A5 )
   local MILREAD=("Read  ")
   local MILMARK=("   ")
 
@@ -874,18 +928,18 @@ while [ 1 ];do
   if [ $? -ne $D_OK ];then ERRMESSAGE "Verbindungsaufbau";else break;fi
 done
 
-FN_LED
-FN_SLADR
-#slotnr=6
-#scuslave_baseadr=$(eb-find $scutcp $scu_vendor_id $scu_bus_master_dev_id 2>> $errlog)
-#typeset -i calctestslave=$((scuslave_baseadr+0x20000*slotnr))
-#testslaveadr=0x$( printf "%X\n" $calctestslave ); #TESTSLAVE!!!
-FN_SLBUS
-FN_SLOT
-FN_SRS
-FN_ECHO
+#FN_LED
+#FN_SLADR
+slotnr=6
+scuslave_baseadr=$(eb-find $scutcp $scu_vendor_id $scu_bus_master_dev_id 2>> $errlog)
+typeset -i calctestslave=$((scuslave_baseadr+0x20000*slotnr))
+testslaveadr=0x$( printf "%X\n" $calctestslave ); #TESTSLAVE!!!
+#FN_SLBUS
+#FN_SLOT
+#FN_SRS
+#FN_ECHO
 FN_OW
-FN_DB_INT
-FN_DB_IFK
+#FN_DB_INT
+#FN_DB_IFK
 
 FIN 0
