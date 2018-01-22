@@ -928,18 +928,18 @@ while [ 1 ];do
   if [ $? -ne $D_OK ];then ERRMESSAGE "Verbindungsaufbau";else break;fi
 done
 
-#FN_LED
-#FN_SLADR
-slotnr=6
-scuslave_baseadr=$(eb-find $scutcp $scu_vendor_id $scu_bus_master_dev_id 2>> $errlog)
-typeset -i calctestslave=$((scuslave_baseadr+0x20000*slotnr))
-testslaveadr=0x$( printf "%X\n" $calctestslave ); #TESTSLAVE!!!
-#FN_SLBUS
-#FN_SLOT
-#FN_SRS
-#FN_ECHO
+FN_LED
+FN_SLADR
+#slotnr=6
+#scuslave_baseadr=$(eb-find $scutcp $scu_vendor_id $scu_bus_master_dev_id 2>> $errlog)
+#typeset -i calctestslave=$((scuslave_baseadr+0x20000*slotnr))
+#testslaveadr=0x$( printf "%X\n" $calctestslave ); #TESTSLAVE!!!
+FN_SLBUS
+FN_SLOT
+FN_SRS
+FN_ECHO
 FN_OW
-#FN_DB_INT
-#FN_DB_IFK
+FN_DB_INT
+FN_DB_IFK
 
 FIN 0
